@@ -38,7 +38,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 st.set_page_config(
     page_title="JAPS Placement Analytics Dashboard",
-    page_icon="📊",
+    page_icon="Logo-PTS.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -126,8 +126,7 @@ LOCAL_CSV_FALLBACK = "HR_Job_Placement_Cleaned_Engineered.csv"
 # Fallback connection string (used only if DATABASE_URL is not set via env
 # var or Streamlit secrets). Matches the credentials used in the notebook.
 DEFAULT_DATABASE_URL = (
-    "postgresql://japs_user:soVpMsGaQ4F44Vqsy3E2VE0yfGxwwvAJ"
-    "@dpg-da585k3tqb8s739o5jig-a.virginia-postgres.render.com/japs_db_ne2r"
+    "postgresql://japs_user:soVpMsGaQ4F44Vqsy3E2VE0yfGxwwvAJ@dpg-da585k3tqb8s739o5jig-a.virginia-postgres.render.com/japs_db_ne2r"
 )
 
 
@@ -169,16 +168,12 @@ def load_from_csv(file) -> pd.DataFrame:
 
 def normalize_status(df: pd.DataFrame) -> pd.DataFrame:
     """Add a boolean `is_placed` column regardless of whether `status` is
-    stored as 0/1 or as 'Placed' / 'Not Placed' strings.
-
-    Uses pd.api.types.is_numeric_dtype rather than checking dtype == object,
-    since CSV/SQL reads can back text columns with pandas' nullable "string"
-    or pyarrow-backed dtypes instead of plain object."""
+    stored as 0/1 or as 'Placed' / 'Not Placed' strings."""
     df = df.copy()
-    if pd.api.types.is_numeric_dtype(df["status"]):
-        df["is_placed"] = df["status"].astype(float).eq(1)
-    else:
+    if df["status"].dtype == object:
         df["is_placed"] = df["status"].astype(str).str.strip().str.lower().eq("placed")
+    else:
+        df["is_placed"] = df["status"].astype(float).eq(1)
     return df
 
 
@@ -456,4 +451,14 @@ st.download_button(
 st.caption(
     "Data source: PostgreSQL table `job_placement_data` "
     "(populated in JAPS_Analysis_prediction.ipynb), with CSV fallback."
+)
+
+# ============================================================
+# FOOTER
+# ============================================================
+
+st.markdown("---")
+st.markdown(
+    "<div style='text-align:center;'>Created by <b>Pearlraj</b></div>",
+    unsafe_allow_html=True
 )
