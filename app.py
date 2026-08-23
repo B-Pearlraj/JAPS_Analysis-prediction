@@ -126,8 +126,7 @@ LOCAL_CSV_FALLBACK = "HR_Job_Placement_Cleaned_Engineered.csv"
 # Fallback connection string (used only if DATABASE_URL is not set via env
 # var or Streamlit secrets). Matches the credentials used in the notebook.
 DEFAULT_DATABASE_URL = (
-    "postgresql://japs_user:soVpMsGaQ4F44Vqsy3E2VE0yfGxwwvAJ"
-    "@dpg-da585k3tqb8s739o5jig-a.virginia-postgres.render.com/japs_db_ne2r"
+    "postgresql://japs_user:soVpMsGaQ4F44Vqsy3E2VE0yfGxwwvAJ@dpg-da585k3tqb8s739o5jig-a.virginia-postgres.render.com/japs_db_ne2r"
 )
 
 
