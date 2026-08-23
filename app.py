@@ -127,12 +127,6 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 TABLE_NAME = "job_placement_data"
 LOCAL_CSV_FALLBACK = "HR_Job_Placement_Cleaned_Engineered.csv"
 
-# Fallback connection string (used only if DATABASE_URL is not set via env
-# var or Streamlit secrets). Matches the credentials used in the notebook.
-DATABASE_URL = (
-    "postgresql://japs_user:soVpMsGaQ4F44Vqsy3E2VE0yfGxwwvAJ@dpg-da585k3tqb8s739o5jig-a.virginia-postgres.render.com/japs_db_ne2r"
-)
-
 
 # --------------------------------------------------------------------------- #
 # Data loading
@@ -150,16 +144,16 @@ def get_engine(database_url: str):
 
 
 def resolve_database_url() -> str | None:
-    """Look for a DB connection string in env vars, then Streamlit secrets,
-    then fall back to the hardcoded default so the app works out of the box."""
+    """Look for a DB connection string in env vars, then Streamlit secrets.
+    Returns None if neither is set — the app then falls back to CSV upload
+    rather than silently using a stale hardcoded credential."""
     url = os.getenv("DATABASE_URL")
     if url:
         return url
     try:
         return st.secrets["DATABASE_URL"]
     except Exception:
-        pass
-    return DATABASE_URL
+        return None
 
 
 @st.cache_data(show_spinner="Loading candidate data from the database...", ttl=600)
