@@ -265,7 +265,7 @@ badge_class = "badge-db" if data_source and "Database" in data_source else "badg
 st.markdown(
     f"""
     <div class="dashboard-header">
-        <h1>📊 JAPS Candidate Placement Analytics Dashboard</h1>
+        <h1>📊  Job Acceptance Prediction System Candidate Placement Analytics Dashboard</h1>
         <p>
             Live view of candidate placement performance &nbsp;·&nbsp;
             <span class="badge {badge_class}">{data_source}</span>
