@@ -36,9 +36,13 @@ from sqlalchemy.exc import SQLAlchemyError
 # Page configuration & styling
 # --------------------------------------------------------------------------- #
 
+# Use the logo file if it's actually present in the deployment; otherwise
+# fall back to an emoji so a missing/renamed image file can't crash the app.
+PAGE_ICON = "Logo-PTS.png" if os.path.exists("Logo-PTS.png") else "📊"
+
 st.set_page_config(
     page_title="JAPS Placement Analytics Dashboard",
-    page_icon="Logo-PTS.png",
+    page_icon=PAGE_ICON,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -136,8 +140,13 @@ DEFAULT_DATABASE_URL = (
 
 @st.cache_resource(show_spinner=False)
 def get_engine(database_url: str):
-    """Create (and cache) a SQLAlchemy engine for the given connection string."""
-    return create_engine(database_url, pool_pre_ping=True)
+    """Create (and cache) a SQLAlchemy engine for the given connection string.
+
+    Render's managed Postgres requires SSL. If the URL doesn't already
+    specify an sslmode, force one here so the app doesn't depend on the
+    query string being pasted correctly every time."""
+    connect_args = {} if "sslmode=" in database_url else {"sslmode": "require"}
+    return create_engine(database_url, pool_pre_ping=True, connect_args=connect_args)
 
 
 def resolve_database_url() -> str | None:
@@ -167,13 +176,15 @@ def load_from_csv(file) -> pd.DataFrame:
 
 
 def normalize_status(df: pd.DataFrame) -> pd.DataFrame:
-    """Add a boolean `is_placed` column regardless of whether `status` is
-    stored as 0/1 or as 'Placed' / 'Not Placed' strings."""
+    """Add a boolean `is_placed` column regardless of how `status` is typed
+    or encoded (0/1, True/False, 'Placed'/'Not Placed', etc).
+
+    Converts everything to string first rather than branching on dtype —
+    dtype checks (object vs numeric vs pyarrow-backed string) are unreliable
+    across pandas versions/backends, but string comparison always works."""
     df = df.copy()
-    if df["status"].dtype == object:
-        df["is_placed"] = df["status"].astype(str).str.strip().str.lower().eq("placed")
-    else:
-        df["is_placed"] = df["status"].astype(float).eq(1)
+    status_str = df["status"].astype(str).str.strip().str.lower()
+    df["is_placed"] = status_str.isin(["1", "1.0", "true", "placed", "yes"])
     return df
 
 
