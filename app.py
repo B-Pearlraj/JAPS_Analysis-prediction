@@ -9,28 +9,41 @@ Run:
     streamlit run app.py
 
 Configure the database connection with ONE of the following (checked in order):
-    1. Environment variable  DATABASE_URL
+    1. Environment variable  DATABASE_URL   (loaded from a local .env if present)
     2. Streamlit secrets     .streamlit/secrets.toml -> DATABASE_URL = "..."
     3. Sidebar CSV upload (fallback / offline demo mode)
 
+DRIVER NOTE
+-----------
+This app connects with the `psycopg` (v3) driver rather than `psycopg2`.
+If your DATABASE_URL starts with a bare "postgresql://", SQLAlchemy
+resolves that to psycopg2 by default — resolve_database_url() below
+rewrites it to "postgresql+psycopg://" so it uses psycopg3 instead.
+Make sure `psycopg[binary]` (not `psycopg2-binary`) is in requirements.txt.
+
 IMPORTANT SECURITY NOTE
 ------------------------
-A hardcoded connection string is included below as a fallback so the app
-works out of the box, matching the notebook. Since this password now lives
-in a plain-text file, treat it as exposed: rotate it in the Render
-dashboard periodically, don't push this file to a public repo, and prefer
-setting DATABASE_URL as an environment variable or Streamlit secret in any
-shared/deployed environment.
+Do not hardcode a connection string/password in this file. Keep it in a
+local .env (untracked, see .gitignore) or in Streamlit secrets. Never
+push a real connection string to a public repo, and rotate any credential
+that has ever been pasted into a chat, ticket, or committed file.
 """
 
 import os
+import re
 from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
+
+# Load a local .env for development. No-ops harmlessly in production
+# environments (Render/Streamlit Cloud) where DATABASE_URL is already
+# set as a real environment variable.
+load_dotenv()
 
 # --------------------------------------------------------------------------- #
 # Page configuration & styling
@@ -136,9 +149,9 @@ LOCAL_CSV_FALLBACK = "HR_Job_Placement_Cleaned_Engineered.csv"
 def get_engine(database_url: str):
     """Create (and cache) a SQLAlchemy engine for the given connection string.
 
-    Render's managed Postgres requires SSL. If the URL doesn't already
-    specify an sslmode, force one here so the app doesn't depend on the
-    query string being pasted correctly every time."""
+    Render's / Neon's managed Postgres requires SSL. If the URL doesn't
+    already specify an sslmode, force one here so the app doesn't depend
+    on the query string being pasted correctly every time."""
     connect_args = {} if "sslmode=" in database_url else {"sslmode": "require"}
     return create_engine(database_url, pool_pre_ping=True, connect_args=connect_args)
 
@@ -146,14 +159,20 @@ def get_engine(database_url: str):
 def resolve_database_url() -> str | None:
     """Look for a DB connection string in env vars, then Streamlit secrets.
     Returns None if neither is set — the app then falls back to CSV upload
-    rather than silently using a stale hardcoded credential."""
+    rather than silently using a stale hardcoded credential.
+
+    Normalizes the scheme to use the psycopg (v3) driver: SQLAlchemy
+    resolves a bare "postgresql://" to psycopg2, which may not be
+    installed, so a plain scheme is rewritten to "postgresql+psycopg://".
+    A scheme that already names a driver (postgresql+psycopg2://,
+    postgresql+asyncpg://, etc.) is left untouched."""
     url = os.getenv("DATABASE_URL")
-    if url:
-        return url
-    try:
-        return st.secrets["DATABASE_URL"]
-    except Exception:
-        return None
+    if not url:
+        try:
+            url = st.secrets["DATABASE_URL"]
+        except Exception:
+            return None
+    return re.sub(r"^postgresql://", "postgresql+psycopg://", url)
 
 
 @st.cache_data(show_spinner="Loading candidate data from the database...", ttl=600)
